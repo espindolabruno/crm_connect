@@ -1,11 +1,14 @@
-﻿// Client-side: uses relative path (/api) so Next.js rewrites proxy to the real API
-// Server-side: uses API_URL env var directly
+﻿// Client-side: uses relative /api path so Next.js rewrites proxy to the real API
+// Server-side (SSR): calls the API directly using API_URL env var
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return '/api'; // browser: goes through Next.js rewrite proxy
   }
-  // SSR: call the API directly
-  return (process.env.API_URL || 'http://localhost:4000/api').replace(/\/$/, '');
+  // SSR: normalize URL and always append /api
+  const base = (process.env.API_URL || 'http://localhost:4000')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/$/, '');
+  return `${base}/api`;
 };
 
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
