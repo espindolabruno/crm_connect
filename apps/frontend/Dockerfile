@@ -4,8 +4,6 @@ RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/
 
 FROM base AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY . .
 RUN pnpm install --no-frozen-lockfile --ignore-scripts
 RUN pnpm rebuild esbuild @prisma/client @prisma/engines prisma msgpackr-extract sharp unrs-resolver

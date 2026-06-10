@@ -1,15 +1,24 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+﻿// Client-side: uses relative path (/api) so Next.js rewrites proxy to the real API
+// Server-side: uses API_URL env var directly
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return '/api'; // browser: goes through Next.js rewrite proxy
+  }
+  // SSR: call the API directly
+  return (process.env.API_URL || 'http://localhost:4000/api').replace(/\/$/, '');
+};
 
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : null;
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const baseUrl = getBaseUrl();
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers,
   });
