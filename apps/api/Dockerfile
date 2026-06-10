@@ -8,7 +8,8 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
 COPY apps/api/package.json ./apps/api/
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
+RUN pnpm rebuild esbuild @prisma/client @prisma/engines prisma msgpackr-extract
 
 FROM dependencies AS builder
 WORKDIR /app
