@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const { user, loading, logout } = useAuth();
@@ -43,6 +44,29 @@ export default function HomePage() {
           </span>
         </div>
 
+        <nav className="flex items-center gap-2">
+          <button
+            onClick={() => router.push('/')}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition shadow-md shadow-indigo-600/10 cursor-pointer"
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => router.push('/pipeline')}
+            className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-slate-900 transition cursor-pointer text-slate-350"
+          >
+            Funil (Kanban)
+          </button>
+          {user?.role === 'OWNER' && (
+            <button
+              onClick={() => router.push('/settings')}
+              className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-slate-900 transition cursor-pointer text-slate-300"
+            >
+              Configurações IA
+            </button>
+          )}
+        </nav>
+
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-medium text-slate-200">{user.name}</p>
@@ -76,6 +100,15 @@ export default function HomePage() {
               <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">ID da Conta</span>
               <span className="text-sm font-mono text-slate-300 mt-1 block select-all">{user.accountId}</span>
             </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-slate-900/50 flex justify-end">
+            <button
+              onClick={() => router.push('/pipeline')}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition cursor-pointer shadow-lg shadow-indigo-600/10"
+            >
+              Acessar Funil de Vendas (Kanban) <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
