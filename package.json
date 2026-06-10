@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "crm-monorepo",
   "private": true,
   "scripts": {
@@ -10,7 +10,18 @@
     "turbo": "^2.0.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
-  "packageManager": "pnpm@11.5.0"
+  "packageManager": "pnpm@11.5.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
 }
