@@ -1,0 +1,331 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Plan {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum AiActionStatus {
+  PENDING
+  ACCEPTED
+  REVERTED
+  AUTO_APPLIED
+}
+
+enum Sentiment {
+  POSITIVO
+  NEUTRO
+  NEGATIVO
+}
+
+enum Urgency {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum EngagementTrend {
+  RISING
+  STABLE
+  FALLING
+}
+
+enum ActorType {
+  USER
+  AI
+  SYSTEM
+}
+
+model Account {
+  id              String            @id @default(uuid())
+  name            String
+  logoUrl         String?
+  plan            Plan              @default(BASIC)
+  agencyId        String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  users           User[]
+  whatsappConfig  WhatsappConfig?
+  metaCapiConfig  MetaCapiConfig?
+  pipelines       Pipeline[]
+  leads           Lead[]
+  waTemplates     WaTemplate[]
+  conversations   Conversation[]
+}
+
+model User {
+  id           String    @id @default(uuid())
+  accountId    String
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model WhatsappConfig {
+  id               String   @id @default(uuid())
+  accountId        String   @unique
+  phoneNumberId    String?
+  wabaId           String?
+  accessTokenEnc   String?
+  verifyToken      String?
+  status           String   @default("DISCONNECTED")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model MetaCapiConfig {
+  id             String   @id @default(uuid())
+  accountId      String   @unique
+  pixelId        String?
+  accessTokenEnc String?
+  testEventCode  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Pipeline {
+  id        String          @id @default(uuid())
+  accountId String
+  name      String
+  isDefault Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  account   Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stages    PipelineStage[]
+}
+
+model PipelineStage {
+  id               String      @id @default(uuid())
+  pipelineId       String
+  name             String
+  orderIndex       Int
+  color            String      @default("#1056D4")
+  capiEventTrigger String?     // e.g., "Lead", "Purchase" to fire CAPI on entry
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  pipeline         Pipeline    @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  leads            Lead[]
+}
+
+model Lead {
+  id             String            @id @default(uuid())
+  accountId      String
+  stageId        String
+  name           String
+  phone          String
+  email          String?
+  sourceCampaign String?
+  sourceAdset    String?
+  sourceAd       String?
+  dealValue      Float             @default(0.0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  account        Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stage          PipelineStage     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  tags           LeadTag[]
+  conversations  Conversation[]
+  aiLogs         AiAnalysisLog[]
+  aiActions      AiAction[]
+  engagement     LeadEngagement[]
+  intentTags     LeadIntentTag[]
+  capiEvents     CapiEvent[]
+  timeline       LeadTimeline[]
+}
+
+model LeadTag {
+  id        String   @id @default(uuid())
+  leadId    String
+  tagName   String
+  createdAt DateTime @default(now())
+
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, tagName])
+}
+
+model Conversation {
+  id               String    @id @default(uuid())
+  leadId           String
+  accountId        String
+  waConversationId String    @unique
+  lastMessageAt    DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  lead             Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  messages         Message[]
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  conversationId String
+  direction      MessageDirection
+  type           MessageType      @default(TEXT)
+  content        String           // Text content or media URL/metadata
+  waMessageId    String?          @unique
+  status         MessageStatus    @default(SENT)
+  createdAt      DateTime         @default(now())
+
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  transcription  AudioTranscription?
+}
+
+model AudioTranscription {
+  id                String   @id @default(uuid())
+  messageId         String   @unique
+  transcriptText    String
+  whisperConfidence Float?
+  cachedAt          DateTime @default(now())
+
+  message           Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model AiAnalysisLog {
+  id              String    @id @default(uuid())
+  leadId          String
+  windowSize      Int
+  messagesJson    String    // Stringified JSON of the conversation window
+  rawResponse     String
+  parsedJson      String
+  confidence      Float
+  sentiment       Sentiment
+  urgency         Urgency
+  engagementScore Int
+  modelUsed       String?
+  createdAt       DateTime  @default(now())
+
+  lead            Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model AiAction {
+  id              String         @id @default(uuid())
+  leadId          String
+  fromStageId     String
+  toStageId       String
+  triggerEvidence String
+  reason          String
+  confidence      Float
+  status          AiActionStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  resolvedAt      DateTime?
+
+  lead            Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model LeadEngagement {
+  id               String          @id @default(uuid())
+  leadId           String
+  score            Int             // 0 to 100
+  trend            EngagementTrend
+  lastCalculatedAt DateTime        @default(now())
+
+  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model LeadIntentTag {
+  id             String   @id @default(uuid())
+  leadId         String
+  intentType     String   // e.g. "objecao-preco", "perguntou-preco"
+  detectedAt     DateTime @default(now())
+  messageExcerpt String
+
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model CapiEvent {
+  id           String   @id @default(uuid())
+  leadId       String
+  eventName    String
+  eventTime    Int
+  eventId      String
+  payloadJson  String
+  metaResponse String?
+  createdAt    DateTime @default(now())
+
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model LeadTimeline {
+  id          String    @id @default(uuid())
+  leadId      String
+  type        String    // e.g. "STAGE_CHANGE", "NOTE_ADDED", "CAPI_FIRED"
+  description String
+  actor       ActorType @default(SYSTEM)
+  createdAt   DateTime  @default(now())
+
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model WaTemplate {
+  id        String   @id @default(uuid())
+  accountId String
+  name      String
+  language  String   @default("pt_BR")
+  category  String
+  bodyText  String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model GlobalAiConfig {
+  id                String   @id @default(uuid())
+  primaryProvider   String   @default("CLAUDE")        // "CLAUDE" | "GEMINI" | "OPENAI"
+  fallbackOrder     String   @default("GEMINI,OPENAI") // CSV ordenado dos fallbacks
+  claudeApiKeyEnc   String?  // Chave Anthropic criptografada
+  geminiApiKeyEnc   String?  // Chave Google Gemini criptografada
+  openaiApiKeyEnc   String?  // Chave OpenAI criptografada
+  claudeModel       String   @default("claude-3-5-sonnet-20240620")
+  geminiModel       String   @default("gemini-1.5-flash")
+  openaiModel       String   @default("gpt-4o-mini")
+  updatedAt         DateTime @updatedAt
+  updatedByUserId   String?  // ID do OWNER que fez a última alteração
+}
+
